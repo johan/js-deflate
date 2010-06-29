@@ -2,32 +2,51 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Test</title>
-<script src="../../clone/trunk/uneval.js"></script>
-<script src="../../Base64/trunk/base64.js"></script>
 <script src="rawinflate.js"></script>
 <script src="rawdeflate.js"></script>
 <script>
 $ = function(id){ return document.getElementById(id) };
+UTF8 = {
+  encode: function(s) { return unescape(encodeURIComponent(s)); },
+  decode: function(s) { return decodeURIComponent(  escape(s)); }
+};
+Base64 = {
+  encode: function(s) { return btoa(s); },
+  decode: function(s) { return atob(s); }
+};
+function compress(s) {
+  setTimeout(function() {
+    $('deflated').value = Base64.encode(RawDeflate.deflate(UTF8.encode(s)));
+    update_sizes();
+  }, 0);
+}
+function decompress(s) {
+  setTimeout(function() {
+    $('inflated').value = UTF8.decode(RawDeflate.inflate(Base64.decode(s)));
+    update_sizes();
+  }, 0);
+}
+function update_sizes() {
+  var szi = $('szi'), inf = $('inflated');
+  var szd = $('szd'), def = $('deflated');
+  szi.innerHTML = UTF8.encode(inf.value).length;
+  szd.innerHTML = Base64.decode(def.value).length;
+}
 </script>
 </head>
 <body>
 <h1>テスト</h1>
 <p>$Id: test.html,v 0.3 2009/03/01 22:52:17 dankogai Exp dankogai $</p>
+<p>Since deflate and inflate operate on octet streams, and web pages don't
+necessarily keep those constraints, these tests first encode the original
+uncompressed text as UTF-8 (capturing all of Unicode). Similarly, output
+from the compression is shown Base64 encoded, as binary data is ugly. The
+sizes shown are exactly what went into and came out of deflate/inflate.</p>
 <dl>
-<dt>Inflated + Base64-Decoded (Original):</dt>
-<dd><textarea id="inflated" cols="64" rows="16" onkeyup="
-var that = this, dst = $('deflated');
-window.setTimeout(function(){
-dst.value = Base64.toBase64(RawDeflate.deflate(Base64.utob(that.value)));
-},0);
-"></textarea></dd>
-<dt>Deflated + Base64-Encoded (Compressed):</dt>
-<dd><textarea id="deflated" cols="64" rows="16" onkeyup="
-var that = this, dst = $('inflated');
-window.setTimeout(function(){
-dst.value = Base64.btou(RawDeflate.inflate(Base64.fromBase64(that.value)));
-},0);
-"></textarea></dd>
+<dt>Base64-decoded + inflated + UTF8-decoded (post-UTF8 original size: <span id="szi">0</span>):</dt>
+<dd><textarea id="inflated" cols="64" rows="16" onkeyup="compress(this.value)"></textarea></dd>
+<dt>Base64-encoded + deflated + UTF8-encoded (pre-Base64 compressed size: <span id="szd">0</span>):</dt>
+<dd><textarea id="deflated" cols="64" rows="16" onkeyup="decompress(this.value)"></textarea></dd>
 </dl>
 </body>
 </html>
