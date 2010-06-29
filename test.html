@@ -17,10 +17,13 @@ Base64 = {
   decode: function(s) { return atob(s); }
 };
 
-var shared_deflater = window.SharedWorker && new SharedWorker('rawdeflate.js');
-if (shared_deflater) {
-  shared_deflater.port.addEventListener('message', done_deflating, false);
-  shared_deflater.port.start();
+var deflater = window.SharedWorker && new SharedWorker('rawdeflate.js');
+if (deflater) {
+  deflater.port.addEventListener('message', done_deflating, false);
+  deflater.port.start();
+} else if (window.Worker) {
+  deflater = new Worker('rawdeflate.js');
+  deflater.onmessage = done_deflating;
 }
 
 var t0;
@@ -34,8 +37,12 @@ function compress(s) {
   s = UTF8.encode(s);
 
   t0 = new Date;
-  if (shared_deflater) {
-    shared_deflater.port.postMessage(s);
+  if (deflater) {
+    if (deflater.port && deflater.port.postMessage) {
+      deflater.port.postMessage(s);
+    } else {
+      deflater.postMessage(s);
+    }
   } else {
     setTimeout(function() {
       done_deflating({ data: deflate(s) });

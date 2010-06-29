@@ -6,12 +6,7 @@
  */
 
 // if run as a web worker, respond to messages by deflating them
-var onconnect = function(e) {
-  var port = e.ports[0];
-  port.onmessage = function(m) {
-    port.postMessage(deflate(m.data, 9));
-  };
-}, deflate = (function() {
+var deflate = (function() {
 
 /* Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
  * Version: 1.0.1
@@ -1671,3 +1666,14 @@ return function deflate(str, level) {
 };
 
 })();
+
+onmessage = function worker(m) {
+  postMessage(deflate(m.data, 9));
+};
+
+onconnect = function sharedWorker(e) {
+  var port = e.ports[0];
+  port.onmessage = function(m) {
+    port.postMessage(deflate(m.data, 9));
+  };
+};
