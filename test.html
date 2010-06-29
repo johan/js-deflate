@@ -14,23 +14,28 @@ Base64 = {
   encode: function(s) { return btoa(s); },
   decode: function(s) { return atob(s); }
 };
-function compress(s) {
+function compress(s, level) {
   setTimeout(function() {
-    $('deflated').value = Base64.encode(RawDeflate.deflate(UTF8.encode(s)));
-    update_sizes();
+    if (level === undefined) level = 9; // best
+    var t0 = new Date;
+    $('deflated').value = Base64.encode(deflate(UTF8.encode(s), level));
+    var t1 = new Date;
+    update_sizes(null, t1 - t0);
   }, 0);
 }
 function decompress(s) {
   setTimeout(function() {
+    var t0 = new Date;
     $('inflated').value = UTF8.decode(RawDeflate.inflate(Base64.decode(s)));
-    update_sizes();
+    var t1 = new Date;
+    update_sizes(t1 - t0, null);
   }, 0);
 }
-function update_sizes() {
-  var szi = $('szi'), inf = $('inflated');
-  var szd = $('szd'), def = $('deflated');
-  szi.innerHTML = UTF8.encode(inf.value).length;
-  szd.innerHTML = Base64.decode(def.value).length;
+function update_sizes(it, dt) {
+  var szi = $('szi'), inf = $('inflated'); it = it ? ' in '+ it +' ms' : '';
+  var szd = $('szd'), def = $('deflated'); dt = dt ? ' in '+ dt +' ms' : '';
+  szi.innerHTML = UTF8.encode(inf.value).length + it;
+  szd.innerHTML = Base64.decode(def.value).length + dt;
 }
 </script>
 </head>
