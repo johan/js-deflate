@@ -5,7 +5,13 @@
  *   http://www.onicos.com/staff/iz/amuse/javascript/expert/deflate.txt
  */
 
-var deflate = (function() {
+// if run as a web worker, respond to messages by deflating them
+var onconnect = function(e) {
+  var port = e.ports[0];
+  port.onmessage = function(m) {
+    port.postMessage(deflate(m.data, 9));
+  };
+}, deflate = (function() {
 
 /* Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
  * Version: 1.0.1

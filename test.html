@@ -6,23 +6,43 @@
 <script src="rawdeflate.js"></script>
 <script>
 $ = function(id){ return document.getElementById(id) };
+
 UTF8 = {
   encode: function(s) { return unescape(encodeURIComponent(s)); },
   decode: function(s) { return decodeURIComponent(  escape(s)); }
 };
+
 Base64 = {
   encode: function(s) { return btoa(s); },
   decode: function(s) { return atob(s); }
 };
-function compress(s, level) {
-  setTimeout(function() {
-    if (level === undefined) level = 9; // best
-    var t0 = new Date;
-    $('deflated').value = Base64.encode(deflate(UTF8.encode(s), level));
-    var t1 = new Date;
-    update_sizes(null, t1 - t0);
-  }, 0);
+
+var shared_deflater = window.SharedWorker && new SharedWorker('rawdeflate.js');
+if (shared_deflater) {
+  shared_deflater.port.addEventListener('message', done_deflating, false);
+  shared_deflater.port.start();
 }
+
+var t0;
+function done_deflating(e) {
+  var t1 = new Date;
+  $('deflated').value = Base64.encode(e.data);
+  update_sizes(null, t1 - t0);
+}
+
+function compress(s) {
+  s = UTF8.encode(s);
+
+  t0 = new Date;
+  if (shared_deflater) {
+    shared_deflater.port.postMessage(s);
+  } else {
+    setTimeout(function() {
+      done_deflating({ data: deflate(s) });
+    }, 0);
+  }
+}
+
 function decompress(s) {
   setTimeout(function() {
     var t0 = new Date;
