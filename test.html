@@ -1,9 +1,8 @@
-<html>
+﻿<html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Test</title>
-<script src="../../clone/trunk/uneval.js"></script>
-<script src="../../Base64/trunk/base64.js"></script>
+<script src="../Base64/base64.js"></script>
 <script src="rawinflate.js"></script>
 <script src="rawdeflate.js"></script>
 <script>
@@ -14,18 +13,34 @@ $ = function(id){ return document.getElementById(id) };
 <h1>テスト</h1>
 <p>$Id: test.html,v 0.3 2009/03/01 22:52:17 dankogai Exp dankogai $</p>
 <dl>
-<dt>Inflated + Base64-Decoded (Original):</dt>
+<dt>Inflated + Base64-Decoded <input type="text" id="dFromBytes" size="1" value="-" />bytes into <input type="text" id="dToBytes" size="1" value="-" />bytes Original in <input type="text" id="dtiming" size="1" value="-" />ms (Ratio <input type="text" id="dRatio" size="1" value="-" />%):</dt>
 <dd><textarea id="inflated" cols="64" rows="16" onkeyup="
-var that = this, dst = $('deflated');
+var that = this, dst = $('deflated'), tim = $('itiming'), fBytes = $('iFromBytes'), tBytes = $('iToBytes'), ratio = $('iRatio');
 window.setTimeout(function(){
+var start = new Date().getTime();
+
 dst.value = Base64.toBase64(RawDeflate.deflate(Base64.utob(that.value)));
+
+//Output Statistics
+tim.value = (new Date().getTime()) - start;
+fBytes.value = that.value.length;
+tBytes.value = dst.value.length;
+ratio.value = Math.round((dst.value.length / that.value.length) * 100);
 },0);
 "></textarea></dd>
-<dt>Deflated + Base64-Encoded (Compressed):</dt>
+<dt>Deflated + Base64-Encoded <input type="text" id="iFromBytes" size="1" value="-" />bytes into <input type="text" id="iToBytes" size="1" value="-" />bytes Compressed in <input type="text" id="itiming" size="1" value="-" />ms (Ratio <input type="text" id="iRatio" size="1" value="-" />%):</dt>
 <dd><textarea id="deflated" cols="64" rows="16" onkeyup="
-var that = this, dst = $('inflated');
+var that = this, dst = $('inflated'), tim = $('dtiming'), fBytes = $('dFromBytes'), tBytes = $('dToBytes'), ratio = $('dRatio');
 window.setTimeout(function(){
+var start = new Date().getTime();
+
 dst.value = Base64.btou(RawDeflate.inflate(Base64.fromBase64(that.value)));
+
+//Output Statistics
+tim.value = (new Date().getTime()) - start;
+fBytes.value = that.value.length;
+tBytes.value = dst.value.length;
+ratio.value = Math.round((dst.value.length / that.value.length) * 100);
 },0);
 "></textarea></dd>
 </dl>
