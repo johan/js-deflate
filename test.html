@@ -7,48 +7,27 @@
 <script src="rawdeflate.js"></script>
 <script>
     $ = function (id) { return document.getElementById(id) };
-
-    //var deflater = window.SharedWorker && new SharedWorker('rawdeflate.js');
-    //if (deflater) {
-    //  deflater.port.addEventListener('message', done_deflating, false);
-    //  deflater.port.start();
-    //} else if (window.Worker) {
-    //  deflater = new Worker('rawdeflate.js');
-    //  deflater.onmessage = done_deflating;
-    //}
-
-    var t0;
-    var done_deflating = function (e) {
-        var t1 = new Date;
-        $('deflated').value = RawDeflate.Base64.encode(e.data);
-        update_sizes(null, t1 - t0);
-    }
-
+    
     var decode = function (s) {
         $('inflated').value = RawDeflate.UTF8.decode(RawDeflate.Base64.decode(s));
         update_sizes(null, null);
     }
 
     var compress = function (s) {
-        t0 = new Date;
-        $('deflated').value = RawDeflate.Base64.encode(RawDeflate.deflate(RawDeflate.UTF8.encode(s)));
-        var t1 = new Date;
-        update_sizes(null, t1 - t0);
-        //  t0 = new Date;
-        //  if (deflater) {
-        //    if (deflater.port && deflater.port.postMessage) {
-        //      deflater.port.postMessage(s);
-        //    } else {
-        //      deflater.postMessage(s);
-        //    }
-        //  } else {
-        //    setTimeout(function() {
-        //      done_deflating({ data: deflate(s) });
-        //    }, 0);
-        //  }
+        //Trigger web worker when enabled
+        if (workerEnabled && deflate_worker) return compress_using_webworker(s);
+
+        //Almost Inline Compression
+        setTimeout(function () {
+            var t0 = new Date;
+            $('deflated').value = RawDeflate.Base64.encode(RawDeflate.deflate(RawDeflate.UTF8.encode(s)));
+            var t1 = new Date;
+            update_sizes(null, t1 - t0);
+        }, 0);
     }
 
     var decompress = function (s) {
+        //Almost Inline Decompression
         setTimeout(function () {
             var t0 = new Date;
             $('inflated').value = RawDeflate.UTF8.decode(RawDeflate.inflate(RawDeflate.Base64.decode(s)));
@@ -64,6 +43,36 @@
         szt.innerHTML = enc.value.length;
         szi.innerHTML = RawDeflate.UTF8.encode(inf.value).length + it;
         szd.innerHTML = RawDeflate.Base64.decode(def.value).length + dt;
+    }
+
+    /* * * * * * * * * * * * * * *
+     * WEB WORKER IMPLEMENTATION *
+     * * * * * * * * * * * * * * */
+    var workerEnabled = false; //Web workers are currently broken
+    var deflate_worker = window.SharedWorker && new SharedWorker('rawdeflate_webworker.js');
+    if (deflate_worker) {
+        deflate_worker.port.addEventListener('message', done_deflating, false);
+    } else if (window.Worker) {
+        deflate_worker = new Worker('rawdeflate_webworker.js');
+        deflate_worker.addEventListener('message', done_deflating, false);
+    }
+
+    var t0;
+    var compress_using_webworker = function (s) {
+        t0 = new Date;
+        if (deflate_worker) {
+            if (deflate_worker.port && deflate_worker.port.postMessage) {
+                deflate_worker.port.postMessage(RawDeflate.UTF8.encode(s));
+            } else {
+                deflate_worker.postMessage(RawDeflate.UTF8.encode(s));
+            }
+        }
+    }
+
+    var done_deflating = function (e) {
+        var t1 = new Date;
+        $('deflated').value = RawDeflate.Base64.encode(e.data);
+        update_sizes(null, t1 - t0);
     }
 
 </script>

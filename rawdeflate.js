@@ -1664,15 +1664,3 @@
     RawDeflate.deflate = deflate;
 
 })();
-
-// if run as a web worker, respond to messages by deflating them
-//onmessage = function worker(m) {
-//    postMessage(RawDeflate.deflate(m.data, 9));
-//};
-
-//onconnect = function sharedWorker(e) {
-//  var port = e.ports[0];
-//  port.onmessage = function(m) {
-//      port.postMessage(RawDeflate.deflate(m.data, 9));
-//  };
-//};
