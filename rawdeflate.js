@@ -5,6 +5,10 @@
  *   http://www.onicos.com/staff/iz/amuse/javascript/expert/deflate.txt
  */
 
+//Define global library object reference
+if (RawDeflate == undefined)
+    var RawDeflate = {};
+
 (function () {
 
     /* Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
@@ -1659,8 +1663,6 @@
         return aout.join("");
     };
 
-    if (!window.RawDeflate) RawDeflate = {};
-
     RawDeflate.deflate = deflate;
-
 })();
+
