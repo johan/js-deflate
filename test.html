@@ -1,69 +1,136 @@
-<html>
+﻿<html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Test</title>
+<script src="encoding_utils.js"></script>
 <script src="rawinflate.js"></script>
 <script src="rawdeflate.js"></script>
 <script>
-$ = function(id){ return document.getElementById(id) };
-
-UTF8 = {
-  encode: function(s) { return unescape(encodeURIComponent(s)); },
-  decode: function(s) { return decodeURIComponent(  escape(s)); }
-};
-
-Base64 = {
-  encode: function(s) { return btoa(s); },
-  decode: function(s) { return atob(s); }
-};
-
-var deflater = window.SharedWorker && new SharedWorker('rawdeflate.js');
-if (deflater) {
-  deflater.port.addEventListener('message', done_deflating, false);
-  deflater.port.start();
-} else if (window.Worker) {
-  deflater = new Worker('rawdeflate.js');
-  deflater.onmessage = done_deflating;
-}
-
-var t0;
-function done_deflating(e) {
-  var t1 = new Date;
-  $('deflated').value = Base64.encode(e.data);
-  update_sizes(null, t1 - t0);
-}
-
-function compress(s) {
-  s = UTF8.encode(s);
-
-  t0 = new Date;
-  if (deflater) {
-    if (deflater.port && deflater.port.postMessage) {
-      deflater.port.postMessage(s);
-    } else {
-      deflater.postMessage(s);
+    $ = function (id) { return document.getElementById(id) };
+    
+    var decode = function (s) {
+        $('inflated').value = RawDeflate.UTF8.decode(RawDeflate.Base64.decode(s));
+        update_sizes(null, null);
     }
-  } else {
-    setTimeout(function() {
-      done_deflating({ data: deflate(s) });
-    }, 0);
-  }
-}
 
-function decompress(s) {
-  setTimeout(function() {
-    var t0 = new Date;
-    $('inflated').value = UTF8.decode(RawDeflate.inflate(Base64.decode(s)));
-    var t1 = new Date;
-    update_sizes(t1 - t0, null);
-  }, 0);
-}
-function update_sizes(it, dt) {
-  var szi = $('szi'), inf = $('inflated'); it = it ? ' in '+ it +' ms' : '';
-  var szd = $('szd'), def = $('deflated'); dt = dt ? ' in '+ dt +' ms' : '';
-  szi.innerHTML = UTF8.encode(inf.value).length + it;
-  szd.innerHTML = Base64.decode(def.value).length + dt;
-}
+    var compress = function (s) {
+        $('encoded').value = RawDeflate.Base64.encode(RawDeflate.UTF8.encode(s));
+
+        //Trigger web worker when enabled
+        if (workerEnabled && deflate_worker) return compress_using_webworker(s);
+
+        //Almost Inline Compression
+        setTimeout(function () {
+            var t0 = new Date;
+            $('deflated').value = RawDeflate.Base64.encode(RawDeflate.deflate(RawDeflate.UTF8.encode(s)));
+            var t1 = new Date;
+            update_sizes(null, t1 - t0);
+        }, 0);
+    }
+
+    var decompress = function (s) {
+        //Trigger web worker when enabled
+        if (workerEnabled && deflate_worker) return decompress_using_webworker(s);
+
+        //Almost Inline Decompression
+        setTimeout(function () {
+            var t0 = new Date;
+            $('inflated').value = RawDeflate.UTF8.decode(RawDeflate.inflate(RawDeflate.Base64.decode(s)));
+            var t1 = new Date;
+            update_sizes(t1 - t0, null);
+        }, 0);
+    }
+
+    var update_sizes = function (it, dt) {
+        var workermsg = '';
+        if (workerEnabled && deflate_worker) {
+            workermsg += ', ';
+            if (deflate_worker.port && deflate_worker.port.postMessage)
+                workermsg += 'shared';
+            workermsg += ' Web Worker enabled';
+        }
+        var szt = $('szt'), enc = $('encoded');
+        var szi = $('szi'), inf = $('inflated'); it = it ? ' in ' + it + ' ms' + workermsg : '';
+        var szd = $('szd'), def = $('deflated'); dt = dt ? ' in ' + dt + ' ms' + workermsg : '';
+        szt.innerHTML = enc.value.length;
+        szi.innerHTML = RawDeflate.UTF8.encode(inf.value).length + it;
+        szd.innerHTML = RawDeflate.Base64.decode(def.value).length + dt;
+    }
+
+
+    /* * * * * * * * * * * * * * *
+     * WEB WORKER IMPLEMENTATION *
+     * * * * * * * * * * * * * * */
+    var workerEnabled = true;
+    var workerSharedEnabled = true;
+
+    var done_deflating = function (e) {
+        var t1 = new Date;
+        if (e.data.type === 'deflate') {
+            $('deflated').value = RawDeflate.Base64.encode(e.data.data);
+            update_sizes(null, t1 - t0);
+        } else {
+            $('inflated').value = RawDeflate.UTF8.decode(e.data.data);
+            update_sizes(t1 - t0, null);
+        }
+    }
+
+    var deflate_worker;
+    if(workerSharedEnabled)
+        deflate_worker = window.SharedWorker && new SharedWorker('rawdeflate_webworker.js');
+    if (deflate_worker) {
+        deflate_worker.port.addEventListener('message', done_deflating, false);
+        deflate_worker.port.addEventListener('error', function (e) {
+            throw new Error(e.message + " (" + e.filename + ":" + e.lineno + ")");
+        }, false);
+        
+        //Use for troubleshooting
+        //deflate_worker.port.addEventListener('message', function (e) { alert('' + e.data); }, false);
+
+        //The shared worker requires a start() to be executed
+        // on both the main thread and the worker thread
+        deflate_worker.port.start();
+
+    } else if (window.Worker) {
+        deflate_worker = new Worker('rawdeflate_webworker.js');
+        deflate_worker.addEventListener('message', done_deflating, false);
+        deflate_worker.addEventListener('error', function (e) {
+            throw new Error(e.message + " (" + e.filename + ":" + e.lineno + ")");
+        }, false);
+
+        //Use for troubleshooting
+        //deflate_worker.addEventListener('message', function (e) { alert('' + e.data); }, false);
+    }
+
+    var t0;
+    var compress_using_webworker = function (s) {
+        t0 = new Date;
+        if (deflate_worker) {
+            var msg = {};
+            msg.type = 'deflate';
+            msg.data = RawDeflate.UTF8.encode(s)
+            if (deflate_worker.port && deflate_worker.port.postMessage) {
+                deflate_worker.port.postMessage(msg);
+            } else {
+                deflate_worker.postMessage(msg);
+            }
+        }
+    }
+
+    var decompress_using_webworker = function (s) {
+        t0 = new Date;
+        if (deflate_worker) {
+            var msg = {};
+            msg.type = 'inflate';
+            msg.data = RawDeflate.Base64.decode(s);
+            if (deflate_worker.port && deflate_worker.port.postMessage) {
+                deflate_worker.port.postMessage(msg);
+            } else {
+                deflate_worker.postMessage(msg);
+            }
+        }
+    }
+
 </script>
 </head>
 <body>
@@ -75,6 +142,8 @@ uncompressed text as UTF-8 (capturing all of Unicode). Similarly, output
 from the compression is shown Base64 encoded, as binary data is ugly. The
 sizes shown are exactly what went into and came out of deflate/inflate.</p>
 <dl>
+<dt>Base64-encoded + UTF8-encoded (original size: <span id="szt">0</span>) - Paste encoded test payloads here:</dt>
+<dd><textarea id="encoded" cols="64" rows="2" onkeyup="decode(this.value)"></textarea></dd>
 <dt>Base64-decoded + inflated + UTF8-decoded (post-UTF8 original size: <span id="szi">0</span>):</dt>
 <dd><textarea id="inflated" cols="64" rows="16" onkeyup="compress(this.value)"></textarea></dd>
 <dt>Base64-encoded + deflated + UTF8-encoded (pre-Base64 compressed size: <span id="szd">0</span>):</dt>
